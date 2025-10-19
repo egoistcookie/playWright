@@ -1,0 +1,172 @@
+[
+  {
+    "name": "__snaker__id",
+    "value": "AfxWjLS0g8Li0c8G",
+    "domain": "passport.youdao.com",
+    "path": "/webzj/v1.0.1/pub",
+    "expires": 1792399537,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "Hm_lvt_fcbf8a457b2c5ae9cc58b5bf4cb7cef1",
+    "value": "1760863537",
+    "domain": ".note.youdao.com",
+    "path": "/signIn/",
+    "expires": 1792399536,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "Hm_lpvt_fcbf8a457b2c5ae9cc58b5bf4cb7cef1",
+    "value": "1760863537",
+    "domain": ".note.youdao.com",
+    "path": "/signIn/",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "HMACCOUNT",
+    "value": "88243BE809EA6925",
+    "domain": ".note.youdao.com",
+    "path": "/signIn/",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "___rl__test__cookies",
+    "value": "1760863536380",
+    "domain": "note.youdao.com",
+    "path": "/signIn",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "JSESSIONID",
+    "value": "2D0BCDD8AC8BC1501EBAF5747C632EE2.ynote-accountserver-docker-gzonline-3-ohezd-9kblv-69479d8ckpmdh-8081",
+    "domain": "note.youdao.com",
+    "path": "/login",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "__yadk_uid",
+    "value": "23sLeke8zVzLUzUwNwgIeTnPQImTmPBY",
+    "domain": "note.youdao.com",
+    "path": "/",
+    "expires": 1792399534,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "OUTFOX_SEARCH_USER_ID_NCOO",
+    "value": "43562507.49711799",
+    "domain": ".youdao.com",
+    "path": "/",
+    "expires": 1795423536.380539,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "OUTFOX_SEARCH_USER_ID",
+    "value": "-195539678@223.74.104.170",
+    "domain": ".youdao.com",
+    "path": "/",
+    "expires": 1795423536.483639,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "HMACCOUNT_BFESS",
+    "value": "88243BE809EA6925",
+    "domain": ".hm.baidu.com",
+    "path": "/",
+    "expires": 1795423536.548929,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "utid",
+    "value": "6YQ5lyAGbjvFPzhulVudNW5K7ieMINfL",
+    "domain": "passport.youdao.com",
+    "path": "/",
+    "expires": 1795423536.853983,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "l_yd_s_youdaonotedvsFApU",
+    "value": "B2844D2E666B49865118540A2A5531BB24CF71777B0954BBD1625ECF2D44AACA2CEE89037313AF33EA60047D39129B9E334D7B6F11AA808043E7CA3AC98039A88799567BBDFB846481A1D3221FBD8EB915D7416E79C37EBF1933A72BE376D1D4991458B1905FED1A40A601FA70061838",
+    "domain": "passport.youdao.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "NTES_WEB_FP",
+    "value": "0aecf580681587159a22d4c749f2c6eb",
+    "domain": "passport.youdao.com",
+    "path": "/",
+    "expires": 1763455537,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "gdxidpyhxdE",
+    "value": "GJm%5CgUqsuX36KxI9u%5CWq%2BSQIeokamn39zmyyiRtzZN9MeMulPoL%5CCiU95Mk8dYiB2h7dJiTy6RRstIdZTnNXYzTXUbgyvux9uQhNP%5CrG%2FJRcgTMa6a5kG4JL59LgZZwKKAr5ZYYgLn7Tlg8IeoC8LHIOEzdgi3v%5C7UPNq%2BtQfJZTDyU2%3A1760864437453",
+    "domain": "passport.youdao.com",
+    "path": "/",
+    "expires": 1763456437,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "YNOTE_SESS",
+    "value": "v2|jgiol__ddmgFhMgukfwZ0lGhHgL0Mq40UWhHJSO4UW0lfhfquh4wF0JBPLzEP46y0qBRfOfnHzW0eB6MOGOLUM0O5PMUERfJS0",
+    "domain": ".note.youdao.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "YNOTE_LOGIN",
+    "value": "3||1760863553991",
+    "domain": ".note.youdao.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "YNOTE_CSTK",
+    "value": "OzRDORRc",
+    "domain": ".note.youdao.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  }
+]

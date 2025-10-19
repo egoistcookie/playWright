@@ -1,0 +1,92 @@
+[
+  {
+    "name": "__yadk_uid",
+    "value": "2Sbzpssl2snjz7BAKohEJnpb276vr8AN",
+    "domain": "note.youdao.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "hb_MA-B0D8-94CBE089C042_source",
+    "value": "www.baidu.com",
+    "domain": ".youdao.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "Hm_lvt_7fe66a8317b6d6f28c82b62b9f890118",
+    "value": "1760843763",
+    "domain": ".note.youdao.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "OUTFOX_SEARCH_USER_ID",
+    "value": "311996910@223.74.104.170",
+    "domain": ".youdao.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "OUTFOX_SEARCH_USER_ID_NCOO",
+    "value": "635896398.3658075",
+    "domain": ".youdao.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "YNOTE_CSTK",
+    "value": "QqYtWKgO",
+    "domain": ".note.youdao.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "YNOTE_PERS",
+    "value": "v2|cqq||YNOTE||web||-1||1760843943788||223.74.104.170||qqB5AB1D6690FD8EE754343BDC2AB09741||YM64gS0LP40wu0LzMO4zfReZOM6FPLUf0UA6MPZhfeuRpLRHPy6MgS0gKOMe4hMpB0gFPLgL0feL0kfn4TKO46z0",
+    "domain": ".note.youdao.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "YNOTE_SESS",
+    "value": "v2|-quKRbUndmkEPLpLkMzl0UGRMzWhMwB0qyOLzMnHY50TFRMJFhLp4R6BhfQ4nfwLRzAOLpuPLpy0JBPLYMnHQK0k56Mqz0LOfR",
+    "domain": ".note.youdao.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "YNOTE_LOGIN",
+    "value": "5||1760863373236",
+    "domain": ".note.youdao.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  }
+]
