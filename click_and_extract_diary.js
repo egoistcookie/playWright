@@ -425,23 +425,23 @@ async function extractNotes() {
         let noUpdateCount = 0;
         const MAX_NO_UPDATES = 3; // 连续几次无更新后才停止
 
-        // for (let i = 0; i < scrollIterations; i++) {
+        for (let i = 0; i < scrollIterations; i++) {
             
-        //     // 改进的滚动策略：先到底部，再回到顶部，再到底部，增加触发加载的概率
-        //     const result = await page.evaluate(() => {
-        //         const scrollableContainer = document.querySelector('.list-bd.topNameTag');
-        //         if (scrollableContainer) {
-        //             scrollableContainer.scrollTop = scrollableContainer.scrollHeight;
-        //             return '⏳ 成功获取可滚动容器并滚动';
-        //         } else {
-        //             return '❌ 未找到可滚动容器';
-        //         }
-        //     });
-        //     console.log(result); // 这行会在 Node.js 终端打印
+            // 改进的滚动策略：先到底部，再回到顶部，再到底部，增加触发加载的概率
+            const result = await page.evaluate(() => {
+                const scrollableContainer = document.querySelector('.list-bd.topNameTag');
+                if (scrollableContainer) {
+                    scrollableContainer.scrollTop = scrollableContainer.scrollHeight;
+                    return '⏳ 成功获取可滚动容器并滚动';
+                } else {
+                    return '❌ 未找到可滚动容器';
+                }
+            });
+            console.log(result); // 这行会在 Node.js 终端打印
 
-        //     // 增加等待时间，确保内容充分加载
-        //     await page.waitForTimeout(1000);
-        // }
+            // 增加等待时间，确保内容充分加载
+            await page.waitForTimeout(1000);
+        }
 
         console.log('✅ 页面滚动完成，已加载内容样本数:', uniqueContents.size);
 
@@ -499,16 +499,34 @@ async function extractNotes() {
                     outputValues.push('未找到输入框（iframe内未找到）');
                 }
                 // 6. 找到正文所有段落 div（data-block-type="paragraph"）
-                let paragraphs = await frame.$$('div[data-block-type="paragraph"].css-1xgc5oj');
-                if (paragraphs.length === 0) {
-                    console.log('❌ 根据 1xgc5oj 未找到任何段落（div[data-block-type="paragraph"]）');
-                    paragraphs = await frame.$$('span.css-wc3k03');
-                    if (paragraphs.length === 0) {
-                        console.log('❌ 根据 wc3k03 未找到任何段落（div[data-block-type="paragraph"]）');
-                        paragraphs = await frame.$$('div.css-1eawncy > span');
+                // 定义可能的选择器（按优先级排序）
+                const SELECTORS = [
+                    'div[data-block-type="paragraph"].css-1xgc5oj',// 优先选择器 有道云-正文格式
+                    'span.css-wc3k03',// 次优先选择器 有道云-项目格式
+                    'div.css-1eawncy > span'// 最后选择器 有道云-单选框格式
+                ];
+                let paragraphs = [];
+                for (const selector of SELECTORS) {
+                    paragraphs = await frame.$$(selector);
+                    if (paragraphs.length > 0) {
+                        console.log(`✅ 使用选择器 "${selector}" 找到 ${paragraphs.length} 个段落`);
+                        break;
                     }
+                    console.log(`❌ 使用选择器 "${selector}" 未找到段落`);
                 }
-                console.log(`✅ 找到 ${paragraphs.length} 个段落`);
+                if (paragraphs.length === 0) {
+                    console.log('❌ 所有选择器均未找到段落');
+                }
+                // let paragraphs = await frame.$$('div[data-block-type="paragraph"].css-1xgc5oj');
+                // if (paragraphs.length === 0) {
+                //     console.log('❌ 根据 1xgc5oj 未找到任何段落（div[data-block-type="paragraph"]）');
+                //     paragraphs = await frame.$$('span.css-wc3k03');
+                //     if (paragraphs.length === 0) {
+                //         console.log('❌ 根据 wc3k03 未找到任何段落（div[data-block-type="paragraph"]）');
+                //         paragraphs = await frame.$$('div.css-1eawncy > span');
+                //     }
+                // }
+                // console.log(`✅ 找到 ${paragraphs.length} 个段落`);
                 const allTextParts = [];
                 for (const para of paragraphs) {
                     // ✅ 使用 Playwright 的 .$('selector') 查找子元素，不是原生 DOM 的 querySelector
@@ -694,8 +712,8 @@ async function extractNotes() {
     } finally {
         // 等待用户查看结果
         if (browser) {
-            console.log('\n🔄 浏览器将在1000秒后自动关闭...');
-            await page.waitForTimeout(1000000);
+            console.log('\n🔄 浏览器将在10秒后自动关闭...');
+            await page.waitForTimeout(10000);
             console.log('👋 正在关闭浏览器...');
             await browser.close();
             console.log('✅ 浏览器已关闭');
