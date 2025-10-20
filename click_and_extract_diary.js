@@ -2,6 +2,62 @@ const playwright = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
+// 日志文件路径
+const logFilePath = path.join(__dirname, `执行日志_${new Date().toISOString().replace(/:/g, '-').replace(/\./g, '-')}.txt`);
+
+// 重定向控制台输出到文件
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+const originalConsoleInfo = console.info;
+
+// 自定义日志函数 - 支持多参数
+function logToFileAndConsole(...args) {
+    // 将所有参数转换为字符串并合并
+    const logMessage = args.map(arg => {
+        // 对于对象和数组使用JSON.stringify，否则使用String()
+        return typeof arg === 'object' && arg !== null ? JSON.stringify(arg) : String(arg);
+    }).join(' ');
+    
+    // 追加到日志文件
+    fs.appendFileSync(logFilePath, logMessage + '\n');
+    
+    // 同时输出到控制台（保留原始参数）
+    originalConsoleLog(...args);
+}
+
+// 重写控制台方法 - 支持多参数
+console.log = logToFileAndConsole;
+
+console.error = function(...args) {
+    const logMessage = '[ERROR] ' + args.map(arg => {
+        return typeof arg === 'object' && arg !== null ? JSON.stringify(arg) : String(arg);
+    }).join(' ');
+    
+    fs.appendFileSync(logFilePath, logMessage + '\n');
+    originalConsoleError(...args);
+};
+
+console.warn = function(...args) {
+    const logMessage = '[WARN] ' + args.map(arg => {
+        return typeof arg === 'object' && arg !== null ? JSON.stringify(arg) : String(arg);
+    }).join(' ');
+    
+    fs.appendFileSync(logFilePath, logMessage + '\n');
+    originalConsoleWarn(...args);
+};
+
+console.info = function(...args) {
+    const logMessage = '[INFO] ' + args.map(arg => {
+        return typeof arg === 'object' && arg !== null ? JSON.stringify(arg) : String(arg);
+    }).join(' ');
+    
+    fs.appendFileSync(logFilePath, logMessage + '\n');
+    originalConsoleInfo(...args);
+};
+
+console.log(`🔍 日志将同时保存到: ${logFilePath}`);
+
 // 确保导出目录存在
 const exportDir = path.join(__dirname, '笔记导出');
 if (!fs.existsSync(exportDir)) {
@@ -369,51 +425,23 @@ async function extractNotes() {
         let noUpdateCount = 0;
         const MAX_NO_UPDATES = 3; // 连续几次无更新后才停止
 
-        for (let i = 0; i < scrollIterations; i++) {
+        // for (let i = 0; i < scrollIterations; i++) {
             
-            // 获取当前可见内容，用于检测是否有新内容加载
-            // const contentLength = await page.evaluate(() => document.body.innerText.length);
-            
-            // 简单的内容哈希实现
-            // const contentHash = await page.evaluate(() => {
-            //     const text = document.body.innerText.substring(0, 1000);
-            //     let hash = 0;
-            //     for (let i = 0; i < text.length; i++) {
-            //         hash = ((hash << 5) - hash) + text.charCodeAt(i);
-            //         hash = hash & hash; // Convert to 32bit integer
-            //     }
-            //     return hash;
-            // });
+        //     // 改进的滚动策略：先到底部，再回到顶部，再到底部，增加触发加载的概率
+        //     const result = await page.evaluate(() => {
+        //         const scrollableContainer = document.querySelector('.list-bd.topNameTag');
+        //         if (scrollableContainer) {
+        //             scrollableContainer.scrollTop = scrollableContainer.scrollHeight;
+        //             return '⏳ 成功获取可滚动容器并滚动';
+        //         } else {
+        //             return '❌ 未找到可滚动容器';
+        //         }
+        //     });
+        //     console.log(result); // 这行会在 Node.js 终端打印
 
-            // // 检测内容是否更新
-            // if (uniqueContents.has(contentHash)) {
-            //     noUpdateCount++;
-            //     if (noUpdateCount >= MAX_NO_UPDATES && i > 10) {
-            //         console.log(`  ⏸️  连续${MAX_NO_UPDATES}次无更新，提前结束滚动 (第${i}次)`);
-            //         //break;
-            //     }
-            //     console.log(`  ⏳ 内容未更新 (第${i}次, 连续未更新: ${noUpdateCount}次)`);
-            // } else {
-            //     noUpdateCount = 0;
-            //     uniqueContents.add(contentHash);
-            //     console.log(`  ✅ 内容已更新 (长度: ${contentLength}字符, 第${i}次滚动)`);
-            // }
-            
-            // 改进的滚动策略：先到底部，再回到顶部，再到底部，增加触发加载的概率
-            const result = await page.evaluate(() => {
-                const scrollableContainer = document.querySelector('.list-bd.topNameTag');
-                if (scrollableContainer) {
-                    scrollableContainer.scrollTop = scrollableContainer.scrollHeight;
-                    return '⏳ 成功获取可滚动容器并滚动';
-                } else {
-                    return '❌ 未找到可滚动容器';
-                }
-            });
-            console.log(result); // 这行会在 Node.js 终端打印
-
-            // 增加等待时间，确保内容充分加载
-            await page.waitForTimeout(1000);
-        }
+        //     // 增加等待时间，确保内容充分加载
+        //     await page.waitForTimeout(1000);
+        // }
 
         console.log('✅ 页面滚动完成，已加载内容样本数:', uniqueContents.size);
 
@@ -471,33 +499,37 @@ async function extractNotes() {
                     outputValues.push('未找到输入框（iframe内未找到）');
                 }
                 // 6. 找到正文所有段落 div（data-block-type="paragraph"）
-                const paragraphs = await frame.$$('div[data-block-type="paragraph"].css-1xgc5oj');
+                let paragraphs = await frame.$$('div[data-block-type="paragraph"].css-1xgc5oj');
                 if (paragraphs.length === 0) {
-                    console.log('❌ 未找到任何段落（div[data-block-type="paragraph"]）');
-                } else {
-                    console.log(`✅ 找到 ${paragraphs.length} 个段落`);
-                    const allTextParts = [];
-                    for (const para of paragraphs) {
-                        // ✅ 使用 Playwright 的 .$('selector') 查找子元素，不是原生 DOM 的 querySelector
-                        const spanWrapper = await para.$('span[data-bulb-node-id]');
-                        if (spanWrapper) {
-                            let text = await spanWrapper.textContent(); // ✅ 注意：这是异步的，必须用 await
-                            const textSpan = await spanWrapper.$('span'); // 最内层 span，包含文本
-                            // 如果最内层span包含文本，就用最内层span的文本，否则用外层span的文本
-                            if (textSpan) {
-                                text = await textSpan.textContent(); // ✅ 注意：这是异步的，必须用 await
-                            }
-                            const trimmed = text?.trim();
-                            if (trimmed) {
-                                // console.log('📄 段落内容:', trimmed);
-                                allTextParts.push(trimmed);
-                            }
+                    console.log('❌ 根据 1xgc5oj 未找到任何段落（div[data-block-type="paragraph"]）');
+                    paragraphs = await frame.$$('span.css-wc3k03');
+                    if (paragraphs.length === 0) {
+                        console.log('❌ 根据 wc3k03 未找到任何段落（div[data-block-type="paragraph"]）');
+                        paragraphs = await frame.$$('div.css-1eawncy > span');
+                    }
+                }
+                console.log(`✅ 找到 ${paragraphs.length} 个段落`);
+                const allTextParts = [];
+                for (const para of paragraphs) {
+                    // ✅ 使用 Playwright 的 .$('selector') 查找子元素，不是原生 DOM 的 querySelector
+                    const spanWrapper = await para.$('span[data-bulb-node-id]');
+                    if (spanWrapper) {
+                        let text = await spanWrapper.textContent(); // ✅ 注意：这是异步的，必须用 await
+                        const textSpan = await spanWrapper.$('span'); // 最内层 span，包含文本
+                        // 如果最内层span包含文本，就用最内层span的文本，否则用外层span的文本
+                        if (textSpan) {
+                            text = await textSpan.textContent(); // ✅ 注意：这是异步的，必须用 await
+                        }
+                        const trimmed = text?.trim();
+                        if (trimmed) {
+                            // console.log('📄 段落内容:', trimmed);
+                            allTextParts.push(trimmed);
                         }
                     }
-                    const combinedText = allTextParts.join('\n\n'); // 用两个换行符分隔段落
-                    console.log('🔗 拼接后的全文内容:\n', combinedText);
-                    content += combinedText + '\n\n';
                 }
+                const combinedText = allTextParts.join('\n\n'); // 用两个换行符分隔段落
+                console.log('🔗 拼接后的全文内容:\n', combinedText);
+                content += combinedText + '\n\n';
             } catch (err) {
                 console.log('❌ 在 iframe 中等待输入框超时或出错：', err.message);
                 outputValues.push('未找到输入框（iframe内等待超时）');
@@ -662,8 +694,8 @@ async function extractNotes() {
     } finally {
         // 等待用户查看结果
         if (browser) {
-            console.log('\n🔄 浏览器将在10秒后自动关闭...');
-            await page.waitForTimeout(10000);
+            console.log('\n🔄 浏览器将在1000秒后自动关闭...');
+            await page.waitForTimeout(1000000);
             console.log('👋 正在关闭浏览器...');
             await browser.close();
             console.log('✅ 浏览器已关闭');
