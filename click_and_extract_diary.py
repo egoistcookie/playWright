@@ -2,63 +2,117 @@ import asyncio
 import json
 import os
 import sys
-import time
 from datetime import datetime
+from pathlib import Path
+from typing import List, Dict, Any, Optional
 
-from playwright.async_api import async_playwright
+# 导入Playwright库
+from playwright.async_api import async_playwright, Playwright, Browser, BrowserContext, Page, Frame
 
-# 日志文件路径
-log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"执行日志_{datetime.now().isoformat().replace(':', '-').replace('.', '-')}.txt")
+# 自定义日志类 - 重定向打印输出到文件
+class Logger:
+    _instance = None
+    
+    def __new__(cls):
+        # 单例模式，避免创建多个日志器导致重复输出
+        if cls._instance is None:
+            cls._instance = super(Logger, cls).__new__(cls)
+        return cls._instance
+    
+    def __init__(self):
+        # 防止重复初始化
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+        
+        # 创建日志文件路径
+        timestamp = datetime.now().isoformat().replace(':', '-').replace('.', '-')
+        self.log_file_path = Path(__file__).parent / f'执行日志_{timestamp}.txt'
+        self.original_stdout = sys.stdout
+        self.original_stderr = sys.stderr
+        # 打开日志文件
+        self.log_file = open(self.log_file_path, 'w', encoding='utf-8')
+        self._initialized = True
+        self._printed_log_path = False
+    
+    def write(self, message):
+        # 写入到控制台
+        self.original_stdout.write(message)
+        self.original_stdout.flush()
+        # 写入到文件
+        self.log_file.write(message)
+        self.log_file.flush()
+    
+    def error_write(self, message):
+        # 错误信息特殊处理
+        error_message = f'[ERROR] {message}'
+        self.original_stderr.write(error_message)
+        self.original_stderr.flush()
+        self.log_file.write(error_message)
+        self.log_file.flush()
+    
+    def print_log_path(self):
+        # 只打印一次日志路径
+        if not self._printed_log_path:
+            # 使用old_print直接输出到控制台
+            import builtins
+            builtins.print(f'🔍 日志将同时保存到: {self.log_file_path}')
+            self._printed_log_path = True
+            # 写入到日志文件
+            with open(self.log_file_path, 'a', encoding='utf-8') as f:
+                f.write(f'🔍 日志将同时保存到: {self.log_file_path}\n')
+    
+    def __del__(self):
+        # 关闭文件
+        if hasattr(self, 'log_file') and not self.log_file.closed:
+            self.log_file.close()
 
-# 使用专门的日志函数，不替换原始print函数
-# 保留原始print行为，同时使用log_info/log_error/log_warn记录日志到文件
+# 先保存原始print
+old_print = print
 
-def log_error(*args, **kwargs):
-    log_message = '[ERROR] ' + ' '.join(str(arg) for arg in args)
-    with open(log_file_path, 'a', encoding='utf-8') as f:
-        f.write(log_message + '\n')
-    print('[ERROR]', *args, **kwargs)
+# 重定向标准输出
+def print(*args, **kwargs):
+    # 将参数转换为字符串
+    message = ' '.join(str(arg) for arg in args)
+    # 写入日志
+    if hasattr(logger, 'log_file_path'):
+        with open(logger.log_file_path, 'a', encoding='utf-8') as f:
+            f.write(message + '\n')
+    # 调用原始print
+    old_print(*args, **kwargs)
 
-def log_warn(*args, **kwargs):
-    log_message = '[WARN] ' + ' '.join(str(arg) for arg in args)
-    with open(log_file_path, 'a', encoding='utf-8') as f:
-        f.write(log_message + '\n')
-    print('[WARN]', *args, **kwargs)
-
-def log_info(*args, **kwargs):
-    log_message = '[INFO] ' + ' '.join(str(arg) for arg in args)
-    with open(log_file_path, 'a', encoding='utf-8') as f:
-        f.write(log_message + '\n')
-    print('[INFO]', *args, **kwargs)
-
-print(f'🔍 日志将同时保存到: {log_file_path}')
+# 创建日志记录器
+logger = Logger()
+logger.print_log_path()  # 打印日志路径
 
 # 确保导出目录存在
-export_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '笔记导出')
-if not os.path.exists(export_dir):
-    os.makedirs(export_dir, exist_ok=True)
+def ensure_export_dir() -> Path:
+    export_dir = Path(__file__).parent / '笔记导出'
+    if not export_dir.exists():
+        export_dir.mkdir(parents=True, exist_ok=True)
+    return export_dir
 
 # 生成带时间戳的文件名
-def generate_file_name(prefix='日记'):
+def generate_file_name(prefix: str = '日记') -> Path:
+    export_dir = ensure_export_dir()
     timestamp = datetime.now().isoformat().replace(':', '-').replace('.', '-')
-    return os.path.join(export_dir, f'有道云笔记_{prefix}_{timestamp}.txt')
+    return export_dir / f'有道云笔记_{prefix}_{timestamp}.txt'
 
 # 主提取函数
 async def extract_notes():
     print('🚀 开始有道云笔记日记提取...')
     print('==================================')
 
-    browser = None
-    context = None
-    page = None
-    cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cookies.json')
-    cookies = None
+    browser: Optional[Browser] = None
+    context: Optional[BrowserContext] = None
+    page: Optional[Page] = None
+    cookie_path = Path(__file__).parent / 'cookies.json'
 
     try:
-        # 启动浏览器
-        print('🔧 启动浏览器...')
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(
+        # 启动Playwright
+        async with async_playwright() as playwright:
+            # 启动浏览器
+            print('🔧 启动浏览器...')
+            browser = await playwright.chromium.launch(
                 headless=False,
                 slow_mo=100,
                 args=['--start-maximized']
@@ -70,25 +124,27 @@ async def extract_notes():
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
             )
             
+            cookies = None
             # 尝试加载保存的cookies
-            if os.path.exists(cookie_path):
+            if cookie_path.exists():
                 try:
-                    log_info('🍪 尝试加载保存的cookie...')
+                    print('🍪 尝试加载保存的cookie...')
                     with open(cookie_path, 'r', encoding='utf-8') as f:
                         cookies = json.load(f)
                     await context.add_cookies(cookies)
-                    log_info('✅ Cookie加载成功')
+                    print('✅ Cookie加载成功')
                 except Exception as err:
-                    log_warn(f'⚠️ Cookie加载失败: {err}')
+                    print(f'⚠️ Cookie加载失败: {err}')
             else:
-                log_info('ℹ️  Cookie文件不存在，将在登录后创建')
+                print('ℹ️  Cookie文件不存在，将在登录后创建')
 
             # 创建新页面
             page = await context.new_page()
 
             # 导航到有道云笔记网页版
             print('🌐 导航到有道云笔记...')
-            await page.goto('https://note.youdao.com/web/')
+            # 增加超时时间到60秒，并使用wait_until='domcontentloaded'以更早加载
+            await page.goto('https://note.youdao.com/web/', timeout=60000, wait_until='domcontentloaded')
             print('✅ 已打开有道云笔记网页版')
 
             # 等待一段时间让页面加载
@@ -108,11 +164,10 @@ async def extract_notes():
                 try:
                     cookies = await context.cookies()
                     with open(cookie_path, 'w', encoding='utf-8') as f:
-                        json.dump(cookies, f, ensure_ascii=False, indent=2)
+                        json.dump(cookies, f, indent=2, ensure_ascii=False)
                     print('✅ Cookie已保存，下次运行将自动登录')
                 except Exception as err:
                     print(f'❌ Cookie保存失败: {err}')
-
             else:
                 print('✅ 检测到已登录状态，跳过手动登录步骤')
                 # 给已登录的页面一些加载时间
@@ -146,8 +201,8 @@ async def extract_notes():
             MAX_NO_UPDATES = 3
 
             for i in range(scroll_iterations):
-                # 改进的滚动策略：先到底部，再回到顶部，再到底部，增加触发加载的概率
-                scroll_result = await page.evaluate('''() => {
+                # 改进的滚动策略：先到底部，再回到顶部，再到底部
+                result = await page.evaluate('''() => {
                     const scrollableContainer = document.querySelector('.list-bd.topNameTag');
                     if (scrollableContainer) {
                         scrollableContainer.scrollTop = scrollableContainer.scrollHeight;
@@ -156,7 +211,7 @@ async def extract_notes():
                         return '❌ 未找到可滚动容器';
                     }
                 }''')
-                print(scroll_result)
+                print(result)
 
                 # 增加等待时间，确保内容充分加载
                 await page.wait_for_timeout(1000)
@@ -167,10 +222,10 @@ async def extract_notes():
             list_items = await page.locator('.list-bd.topNameTag li.list-li.file-item').all()
             print(f'✅ 找到 {len(list_items)} 个符合条件的 li 元素')
             output_values = []
-            notes_content = ""
+            content = ""
             processed_count = 0
             total_content_length = 0
-
+            
             for item in list_items:
                 print('---')
                 print('🔸 准备点击一个 li 元素')
@@ -180,30 +235,10 @@ async def extract_notes():
                 # 增加等待时间，确保内容充分加载
                 await page.wait_for_timeout(1000)
 
-                # 2. 等待 iframe 加载 - 尝试多种可能的iframe选择器
-                iframe_found = False
-                iframe_selectors = [
-                    '#bulb-editor',
-                    'iframe[id*="editor"]',
-                    'iframe[src*="editor"]',
-                    'iframe:nth-child(1)',
-                    'iframe'
-                ]
-                
-                iframe_el = None
-                for iframe_selector in iframe_selectors:
-                    try:
-                        print(f'🔍 尝试用选择器 "{iframe_selector}" 查找iframe...')
-                        iframe_el = await page.locator(iframe_selector).first.element_handle(timeout=3000)
-                        if iframe_el:
-                            iframe_found = True
-                            print(f'✅ 成功找到iframe: {iframe_selector}')
-                            break
-                    except:
-                        continue
-                        
-                if not iframe_found:
-                    print('❌ 未找到任何iframe')
+                # 2. 等待 iframe 加载
+                iframe_el = await page.query_selector('#bulb-editor')
+                if not iframe_el:
+                    print('❌ 未找到 iframe（#bulb-editor）')
                     output_values.append('未找到 iframe')
                     continue
                 
@@ -215,52 +250,31 @@ async def extract_notes():
                     continue
                 
                 try:
-                    # 4. 等待 iframe 内的输入框出现 - 增加超时时间并尝试多个可能的选择器
-                    found = False
-                    selectors_to_try = [
-                        'pre.top-title-placeholder',
-                        'h1',
-                        'h2',
-                        'div.title',
-                        'span.title'
-                    ]
-                    
-                    for selector in selectors_to_try:
-                        try:
-                            await frame.wait_for_selector(selector, timeout=8000)
-                            found = True
-                            break
-                        except:
-                            continue
-                    
+                    # 4. 等待 iframe 内的输入框出现
+                    await page.wait_for_selector('pre.top-title-placeholder', timeout=5000)
+
                     # 5. 获取标题
-                    try:
-                        if found:
-                            pre_el = await frame.locator(selector).first.element_handle()
-                        else:
-                            # 尝试获取任何可见的标题元素
-                            pre_el = await frame.locator('h1, h2, pre, div.title, span.title').first.element_handle(timeout=3000)
-                    except:
-                        pre_el = None
+                    pre_el = await page.query_selector('pre.top-title-placeholder')
                     if pre_el:
                         val = await pre_el.text_content()
                         print(f'📝 获取到的输入框值: {val}')
-                        notes_content += f'###标题###[{val}] \n\n'
+                        content += f'###标题###[{val}] \n\n'
                         processed_count += 1
                         output_values.append(val)
                     else:
                         print('❌ 在 iframe 中未找到 input 元素')
                         output_values.append('未找到输入框（iframe内未找到）')
                     
-                    # 6. 找到正文所有段落 div
+                    # 6. 找到正文所有段落
                     # 定义可能的选择器（按优先级排序）
-                    selectors = [
+                    SELECTORS = [
                         'div[data-block-type="paragraph"].css-1xgc5oj',
                         'span.css-wc3k03',
                         'div.css-1eawncy > span'
                     ]
+                    
                     paragraphs = []
-                    for selector in selectors:
+                    for selector in SELECTORS:
                         paragraphs = await frame.locator(selector).all()
                         if len(paragraphs) > 0:
                             print(f'✅ 使用选择器 "{selector}" 找到 {len(paragraphs)} 个段落')
@@ -272,27 +286,43 @@ async def extract_notes():
                     
                     all_text_parts = []
                     for para in paragraphs:
-                        # 查找子元素
                         try:
-                            span_wrapper = await para.locator('span[data-bulb-node-id]').first.element_handle()
-                            if span_wrapper:
+                            # 使用count()检查元素是否存在
+                            span_wrappers = para.locator('span[data-bulb-node-id]')
+                            count = await span_wrappers.count()
+                            if count > 0:
+                                # 获取第一个匹配的元素
+                                span_wrapper = span_wrappers.first
                                 text = await span_wrapper.text_content()
-                                try:
-                                    text_span = await span_wrapper.locator('span').first.element_handle()
-                                    # 如果最内层span包含文本，就用最内层span的文本
-                                    if text_span:
-                                        text = await text_span.text_content()
-                                except:
-                                    pass  # 如果没有找到text_span，就使用span_wrapper的文本
+                                # 检查是否有嵌套的span
+                                text_spans = span_wrapper.locator('span')
+                                if await text_spans.count() > 0:
+                                    inner_text = await text_spans.first.text_content()
+                                    if inner_text and inner_text.strip():
+                                        text = inner_text
                                 trimmed = text.strip() if text else ''
                                 if trimmed:
                                     all_text_parts.append(trimmed)
-                        except:
-                            pass  # 忽略无法处理的段落
+                            else:
+                                # 如果没有找到指定的span，尝试获取段落本身的文本
+                                para_text = await para.text_content()
+                                trimmed = para_text.strip() if para_text else ''
+                                if trimmed:
+                                    all_text_parts.append(trimmed)
+                        except Exception as e:
+                            print(f'⚠️  处理段落时出错: {e}')
+                            # 出错时尝试获取段落文本作为后备
+                            try:
+                                para_text = await para.text_content()
+                                trimmed = para_text.strip() if para_text else ''
+                                if trimmed:
+                                    all_text_parts.append(trimmed)
+                            except:
+                                pass
                     
                     combined_text = '\n\n'.join(all_text_parts)
-                    print(f'🔗 拼接后的全文内容:\n{combined_text}')
-                    notes_content += combined_text + '\n\n'
+                    print(f'🔗 拼接后的全文内容:\n {combined_text}')
+                    content += combined_text + '\n\n'
                     
                 except Exception as err:
                     print(f'❌ 在 iframe 中等待输入框超时或出错：{err}')
@@ -300,9 +330,10 @@ async def extract_notes():
             
             print(f'🎉 所有操作完成，获取的输入框值列表: {output_values}')
 
-            page_text = notes_content
-            # 获取页面文本内容 - 增强版
+            page_text = content
+            # 获取页面文本内容
             print('\n📋 获取页面文本...')
+            import time
             start_time = time.time()
 
             end_time = time.time()
@@ -314,7 +345,7 @@ async def extract_notes():
             await page.wait_for_timeout(5000)
 
             # 统计信息
-            print(f'   - 原始文本行数: {len(page_text.splitlines())}')
+            print(f'   - 原始文本行数: {len(page_text.split("\n"))}')
 
             # 准备输出内容
             all_notes_content = '# 有道云笔记 - 日记内容汇总\n\n'
@@ -324,7 +355,7 @@ async def extract_notes():
             all_notes_content += page_text + '\n\n'
 
             # 保存提取的内容
-            if len(all_notes_content) > 100:  # 确保有实际内容
+            if len(all_notes_content) > 100:
                 output_file = generate_file_name('日记')
                 with open(output_file, 'w', encoding='utf-8') as f:
                     f.write(all_notes_content)
@@ -333,9 +364,9 @@ async def extract_notes():
                 print('\n🎉 提取完成！')
                 print('==================================')
                 print(f'✅ 成功提取 {processed_count} 个日记条目')
-                avg_length = round(total_content_length / processed_count) if processed_count > 0 else 0
-                print(f'📊 平均每个条目内容长度: {avg_length} 字符')
-                print(f'📄 输出文件大小: {round(len(all_notes_content) / 1024)} KB')
+                if processed_count > 0:
+                    print(f'📊 平均每个条目内容长度: {total_content_length // processed_count} 字符')
+                print(f'📄 输出文件大小: {len(all_notes_content) // 1024} KB')
                 print(f'📂 内容已保存到: {output_file}')
                 print('==================================')
             else:
@@ -350,49 +381,40 @@ async def extract_notes():
                         f.write(f'# 页面文本内容\n\n{page_text[:10000]}')
                     print(f'📄 替代内容已保存到: {output_file}')
                 except Exception as e:
-                    log_error(f'❌ 替代方法也失败: {e}')
+                    print(f'❌ 替代方法也失败: {e}')
 
     except Exception as error:
-        import traceback
-        log_error('\n❌ 发生错误: ' + str(error))
-        log_error('错误类型: ' + str(type(error).__name__))
-        log_error('错误位置: ' + str(traceback.format_exc()))
+        print(f'\n❌ 发生错误: {error}')
 
         # 尝试获取页面文本作为备选
         try:
-            if page and not page.is_closed():
+            if page:
                 print('🔄 尝试获取页面文本作为备选...')
                 page_text = await page.evaluate('() => document.body.innerText')
                 output_file = generate_file_name('日记_替代方法')
                 with open(output_file, 'w', encoding='utf-8') as f:
                     f.write(page_text)
                 print(f'📄 备选文本已保存到: {output_file}')
-            else:
-                print('🔄 页面已关闭，无法获取备选文本')
         except Exception as alt_error:
-            log_error(f'❌ 保存备选文本失败: {alt_error}')
+            print(f'❌ 保存备选文本失败: {alt_error}')
     finally:
         # 等待用户查看结果
-        try:
-            if browser:
-                print('\n🔄 浏览器将在10秒后自动关闭...')
-                if page and not page.is_closed():
-                    await page.wait_for_timeout(10000)
+        if browser:
+            print('\n🔄 浏览器将在5秒后自动关闭...')
+            try:
+                if page:
+                    await page.wait_for_timeout(5000)
                 print('👋 正在关闭浏览器...')
-                await browser.close()
+                if browser:
+                    await browser.close()
                 print('✅ 浏览器已关闭')
-        except Exception as close_error:
-            log_error(f'❌ 关闭浏览器时出错: {close_error}')
+            except Exception as close_error:
+                print(f'⚠️  浏览器关闭过程中出错: {close_error}')
 
-# 运行提取器
-async def main():
-    await extract_notes()
-
-if __name__ == "__main__":
+# 运行主函数
+if __name__ == '__main__':
     try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print('\n用户中断了程序')
-    except Exception as e:
-        log_error(f'程序执行出错: {e}')
+        asyncio.run(extract_notes())
+    except Exception as err:
+        print(f'程序执行出错: {err}')
         sys.exit(1)
