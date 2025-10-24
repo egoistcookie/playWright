@@ -398,18 +398,24 @@ async def extract_notes():
         except Exception as alt_error:
             print(f'❌ 保存备选文本失败: {alt_error}')
     finally:
-        # 等待用户查看结果
-        if browser:
-            print('\n🔄 浏览器将在5秒后自动关闭...')
-            try:
-                if page:
-                    await page.wait_for_timeout(5000)
+        # 等待用户查看结果 - 改进版：减少等待时间并增加健壮性
+        try:
+            if browser and browser.is_connected():
+                print('\n🔄 浏览器将在10秒后自动关闭...')
+                try:
+                    # 减少等待时间，避免长时间占用资源
+                    if page:
+                        await page.wait_for_timeout(10000)
+                except:
+                    # 忽略等待过程中的错误
+                    pass
+                
                 print('👋 正在关闭浏览器...')
-                if browser:
-                    await browser.close()
+                await browser.close()
                 print('✅ 浏览器已关闭')
-            except Exception as close_error:
-                print(f'⚠️  浏览器关闭过程中出错: {close_error}')
+        except Exception as close_error:
+            print(f'⚠️  浏览器关闭过程中出错: {close_error}')
+            print('💡 提示：浏览器可能已经被手动关闭')
 
 # 运行主函数
 if __name__ == '__main__':
