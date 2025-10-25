@@ -257,11 +257,43 @@ async def extract_notes():
             for item in list_items:
                 print('---')
                 print('🔸 准备点击一个 li 元素')
+                # 先获取li中的file-date元素的日期
+                file_date = ''
+                try:
+                    # 优化日期获取逻辑，使用更高效的方式
+                    # 尝试使用更直接的方式获取日期文本
+                    date_text = await item.locator('span.file-date').first.inner_text(timeout=2000)
+                    if date_text:
+                        # 清理日期文本并转换格式
+                        cleaned_date = date_text.strip()
+                        # 将 "2025.10.25" 格式转换为 "20251025"
+                        if '.' in cleaned_date:
+                            parts = cleaned_date.split('.')
+                            if len(parts) == 3:
+                                year, month, day = parts
+                                # 确保月和日是两位数
+                                month = month.zfill(2)
+                                day = day.zfill(2)
+                                file_date = f'{year}{month}{day}'
+                        if file_date:
+                            print(f'📅 获取到的文件日期: {file_date}')
+                except Exception:
+                    # 简化错误处理，只在遇到问题时简要记录
+                    pass  # 静默失败，不打印大量错误信息
+                
                 # 1. 点击这个 li
-                await item.click()
-                print('✅ 已点击一个 li')
-                # 增加等待时间，确保内容充分加载
-                await page.wait_for_timeout(1000)
+                try:
+                    # 设置较短的超时时间，并添加错误处理
+                    await item.click(timeout=10000)
+                    print('✅ 点击成功')
+                    # 增加等待时间，确保内容充分加载
+                    await page.wait_for_timeout(1000)
+                except Exception as e:
+                    print(f'❌ 发生错误: {e}')
+                    # 记录错误但仍然继续执行，不会跳过这个文件
+                    print('ℹ️  点击失败但将继续尝试后续操作')
+                    # 即使点击失败，也等待一段时间再继续
+                    await page.wait_for_timeout(500)
 
                 # 2. 等待 iframe 加载
                 iframe_el = await page.query_selector('#bulb-editor')
@@ -286,7 +318,12 @@ async def extract_notes():
                     if pre_el:
                         val = await pre_el.text_content()
                         print(f'📝 获取到的输入框值: {val}')
-                        content += f'###标题###[{val}] \n\n'
+                        # 如果有日期信息，添加到标题中
+                        if file_date:
+                            content += f'###标题###[{val}] [最后修改时间{file_date}] \n\n'
+                            print(f'📝 标题已添加日期信息: {val} [最后修改时间{file_date}]')
+                        else:
+                            content += f'###标题###[{val}] \n\n'
                         processed_count += 1
                         output_values.append(val)
                     else:
@@ -298,71 +335,36 @@ async def extract_notes():
                     # 复合选择器会匹配所有符合任一条件的元素，并按它们在DOM中的出现顺序返回
                     all_paragraphs = []
                     
-                    # 尝试复合选择器（优先）
-                    compound_selector = 'div[data-block-type="paragraph"].css-1xgc5oj'
-                    all_paragraphs = await frame.locator(compound_selector).all()
+                    # 使用span[data-bulb-node-id]选择器获取所有带节点ID的span元素
+                    bulb_spans_selector = 'span[data-bulb-node-id]'
+                    all_spans = await frame.locator(bulb_spans_selector).all()
                     
-                    if len(all_paragraphs) > 0:
-                        print(f'✅ 使用复合选择器 "{compound_selector}" 按DOM顺序找到 {len(all_paragraphs)} 个段落')
+                    if len(all_spans) > 0:
+                        print(f'✅ 使用选择器 "{bulb_spans_selector}" 找到 {len(all_spans)} 个带data-bulb-node-id属性的span元素')
                     else:
-                        # 如果复合选择器失败，尝试其他备选选择器
-                        SELECTORS = [
-                            'span.css-wc3k03',
-                            'div.css-1eawncy > span'
-                        ]
-                        
-                        for selector in SELECTORS:
-                            all_paragraphs = await frame.locator(selector).all()
-                            if len(all_paragraphs) > 0:
-                                print(f'✅ 使用选择器 "{selector}" 找到 {len(all_paragraphs)} 个段落')
-                                break
-                            print(f'❌ 使用选择器 "{selector}" 未找到段落')
-                    
-                    # 将找到的段落赋给变量
-                    paragraphs = all_paragraphs
-                    
-                    if len(paragraphs) == 0:
-                        print('❌ 所有选择器均未找到段落')
+                        print(f'❌ 使用选择器 "{bulb_spans_selector}" 未找到任何元素')
                     
                     all_text_parts = []
                     # 用于去重的集合
                     seen_texts = set()
                     
-                    for para in paragraphs:
+                    for span in all_spans:
                         try:
-                            # 1. 首先尝试获取整个段落的文本内容（优先级最高）
-                            para_text = await para.text_content()
-                            trimmed = para_text.strip() if para_text else ''
+                            # 获取span元素的文本内容
+                            span_text = await span.text_content()
+                            trimmed = span_text.strip() if span_text else ''
                             
-                            # 2. 如果段落文本为空或只有点号等无意义字符，尝试查找所有子span
-                            if not trimmed or len(trimmed) <= 2 or trimmed == '.':
-                                # 查找所有直接子span元素
-                                all_spans = await para.locator('span').all()
-                                span_texts = []
-                                
-                                for span in all_spans:
-                                    span_text = await span.text_content()
-                                    if span_text and span_text.strip():
-                                        span_trimmed = span_text.strip()
-                                        # 过滤掉只有点号的span
-                                        if span_trimmed != '.':
-                                            span_texts.append(span_trimmed)
-                                
-                                # 如果找到了有意义的span文本，使用它们
-                                if span_texts:
-                                    trimmed = ' '.join(span_texts)
-                            
-                            # 3. 确保文本不为空、不是只有点号，并且没有重复
+                            # 确保文本不为空、不是只有点号，并且没有重复
                             if trimmed and trimmed != '.' and trimmed not in seen_texts:
                                 all_text_parts.append(trimmed)
                                 seen_texts.add(trimmed)
                                 print(f'📝 添加文本片段: {trimmed[:50]}...' if len(trimmed) > 50 else f'📝 添加文本片段: {trimmed}')
                         except Exception as e:
-                            print(f'⚠️  处理段落时出错: {e}')
+                            print(f'⚠️  处理span元素时出错: {e}')
                             # 出错时的最终后备方案
                             try:
-                                para_text = await para.text_content()
-                                trimmed = para_text.strip() if para_text else ''
+                                span_text = await span.text_content()
+                                trimmed = span_text.strip() if span_text else ''
                                 if trimmed and trimmed != '.' and trimmed not in seen_texts:
                                     all_text_parts.append(trimmed)
                                     seen_texts.add(trimmed)
