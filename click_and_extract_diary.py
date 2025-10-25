@@ -299,7 +299,7 @@ async def extract_notes():
                     all_paragraphs = []
                     
                     # 尝试复合选择器（优先）
-                    compound_selector = 'div[data-block-type="paragraph"].css-1xgc5oj, div[data-block-type="paragraph"].css-1xgc5oj span'
+                    compound_selector = 'div[data-block-type="paragraph"].css-1xgc5oj'
                     all_paragraphs = await frame.locator(compound_selector).all()
                     
                     if len(all_paragraphs) > 0:
@@ -325,38 +325,47 @@ async def extract_notes():
                         print('❌ 所有选择器均未找到段落')
                     
                     all_text_parts = []
+                    # 用于去重的集合
+                    seen_texts = set()
+                    
                     for para in paragraphs:
                         try:
-                            # 使用count()检查元素是否存在
-                            span_wrappers = para.locator('span[data-bulb-node-id]')
-                            count = await span_wrappers.count()
-                            if count > 0:
-                                # 获取第一个匹配的元素
-                                span_wrapper = span_wrappers.first
-                                text = await span_wrapper.text_content()
-                                # 检查是否有嵌套的span
-                                text_spans = span_wrapper.locator('span')
-                                if await text_spans.count() > 0:
-                                    inner_text = await text_spans.first.text_content()
-                                    if inner_text and inner_text.strip():
-                                        text = inner_text
-                                trimmed = text.strip() if text else ''
-                                if trimmed:
-                                    all_text_parts.append(trimmed)
-                            else:
-                                # 如果没有找到指定的span，尝试获取段落本身的文本
-                                para_text = await para.text_content()
-                                trimmed = para_text.strip() if para_text else ''
-                                if trimmed:
-                                    all_text_parts.append(trimmed)
+                            # 1. 首先尝试获取整个段落的文本内容（优先级最高）
+                            para_text = await para.text_content()
+                            trimmed = para_text.strip() if para_text else ''
+                            
+                            # 2. 如果段落文本为空或只有点号等无意义字符，尝试查找所有子span
+                            if not trimmed or len(trimmed) <= 2 or trimmed == '.':
+                                # 查找所有直接子span元素
+                                all_spans = await para.locator('span').all()
+                                span_texts = []
+                                
+                                for span in all_spans:
+                                    span_text = await span.text_content()
+                                    if span_text and span_text.strip():
+                                        span_trimmed = span_text.strip()
+                                        # 过滤掉只有点号的span
+                                        if span_trimmed != '.':
+                                            span_texts.append(span_trimmed)
+                                
+                                # 如果找到了有意义的span文本，使用它们
+                                if span_texts:
+                                    trimmed = ' '.join(span_texts)
+                            
+                            # 3. 确保文本不为空、不是只有点号，并且没有重复
+                            if trimmed and trimmed != '.' and trimmed not in seen_texts:
+                                all_text_parts.append(trimmed)
+                                seen_texts.add(trimmed)
+                                print(f'📝 添加文本片段: {trimmed[:50]}...' if len(trimmed) > 50 else f'📝 添加文本片段: {trimmed}')
                         except Exception as e:
                             print(f'⚠️  处理段落时出错: {e}')
-                            # 出错时尝试获取段落文本作为后备
+                            # 出错时的最终后备方案
                             try:
                                 para_text = await para.text_content()
                                 trimmed = para_text.strip() if para_text else ''
-                                if trimmed:
+                                if trimmed and trimmed != '.' and trimmed not in seen_texts:
                                     all_text_parts.append(trimmed)
+                                    seen_texts.add(trimmed)
                             except:
                                 pass
                     
