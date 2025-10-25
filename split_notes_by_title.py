@@ -78,8 +78,8 @@ def split_notes_by_title(input_file_path):
 
 
 if __name__ == "__main__":
-    # 输入文件路径
-    input_file = "d:/AiProject/traeWorkspace/playWright/笔记导出/有道云笔记_日记_2025-10-24T23-10-35-563486.txt"
+    # 输入文件路径 - 使用当前目录下的笔记导出目录
+    input_file = os.path.join(os.getcwd(), "笔记导出", "有道云笔记_日记_2025-10-24T23-10-35-563486.txt")
     
     # 执行分割操作
     split_notes_by_title(input_file)

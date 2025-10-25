@@ -206,9 +206,20 @@ async def extract_notes():
                     const scrollableContainer = document.querySelector('.list-bd.topNameTag');
                     if (scrollableContainer) {
                         scrollableContainer.scrollTop = scrollableContainer.scrollHeight;
-                        return '⏳ 成功获取可滚动容器并滚动';
+                        return '⏳ topNameTag 成功获取可滚动容器并滚动';
                     } else {
-                        return '❌ 未找到可滚动容器';
+                        return '❌ topNameTag 未找到可滚动容器';
+                    }
+                }''')
+                print(result)
+                
+                result = await page.evaluate('''() => {
+                    const scrollableContainer = document.querySelector('.list-bd.noItemNum');
+                    if (scrollableContainer) {
+                        scrollableContainer.scrollTop = scrollableContainer.scrollHeight;
+                        return '⏳ noItemNum 成功获取可滚动容器并滚动';
+                    } else {
+                        return '❌ noItemNum 未找到可滚动容器';
                     }
                 }''')
                 print(result)
@@ -219,7 +230,24 @@ async def extract_notes():
             print(f'✅ 页面滚动完成，已加载内容样本数: {len(unique_contents)}')
 
             # 二、逐一点击页面中所有笔记
-            list_items = await page.locator('.list-bd.topNameTag li.list-li.file-item').all()
+            # 定义可能的选择器（按优先级排序）
+            SELECTORS = [
+                '.list-bd.topNameTag li.list-li.file-item',
+                '.abstract-mode li'
+            ]
+            
+            paragraphs = []
+            for selector in SELECTORS:
+                print(f' 使用选择器 "{selector}" 找 li 元素')
+                list_items = await page.locator(selector).all()
+                if len(list_items) > 0:
+                    print(f'✅ 使用选择器 "{selector}" 找到 {len(list_items)} 个 li 元素')
+                    break
+                print(f'❌ 使用选择器 "{selector}" 未找到 li 元素')
+            
+            if len(list_items) == 0:
+                print('❌ 所有选择器均未找到 li 元素')
+            # 不再重新查找，直接使用之前找到的元素列表
             print(f'✅ 找到 {len(list_items)} 个符合条件的 li 元素')
             output_values = []
             content = ""
@@ -266,20 +294,32 @@ async def extract_notes():
                         output_values.append('未找到输入框（iframe内未找到）')
                     
                     # 6. 找到正文所有段落
-                    # 定义可能的选择器（按优先级排序）
-                    SELECTORS = [
-                        'div[data-block-type="paragraph"].css-1xgc5oj',
-                        'span.css-wc3k03',
-                        'div.css-1eawncy > span'
-                    ]
+                    # 首先尝试使用复合选择器同时获取两种段落元素并保持DOM顺序
+                    # 复合选择器会匹配所有符合任一条件的元素，并按它们在DOM中的出现顺序返回
+                    all_paragraphs = []
                     
-                    paragraphs = []
-                    for selector in SELECTORS:
-                        paragraphs = await frame.locator(selector).all()
-                        if len(paragraphs) > 0:
-                            print(f'✅ 使用选择器 "{selector}" 找到 {len(paragraphs)} 个段落')
-                            break
-                        print(f'❌ 使用选择器 "{selector}" 未找到段落')
+                    # 尝试复合选择器（优先）
+                    compound_selector = 'div[data-block-type="paragraph"].css-1xgc5oj, div[data-block-type="paragraph"].css-1xgc5oj span'
+                    all_paragraphs = await frame.locator(compound_selector).all()
+                    
+                    if len(all_paragraphs) > 0:
+                        print(f'✅ 使用复合选择器 "{compound_selector}" 按DOM顺序找到 {len(all_paragraphs)} 个段落')
+                    else:
+                        # 如果复合选择器失败，尝试其他备选选择器
+                        SELECTORS = [
+                            'span.css-wc3k03',
+                            'div.css-1eawncy > span'
+                        ]
+                        
+                        for selector in SELECTORS:
+                            all_paragraphs = await frame.locator(selector).all()
+                            if len(all_paragraphs) > 0:
+                                print(f'✅ 使用选择器 "{selector}" 找到 {len(all_paragraphs)} 个段落')
+                                break
+                            print(f'❌ 使用选择器 "{selector}" 未找到段落')
+                    
+                    # 将找到的段落赋给变量
+                    paragraphs = all_paragraphs
                     
                     if len(paragraphs) == 0:
                         print('❌ 所有选择器均未找到段落')
